@@ -8,6 +8,6 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "echo 'No lint configured for contracts'"
+    "lint": "node -e \"console.log('No lint configured for contracts')\""
   }
 }
