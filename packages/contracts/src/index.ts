@@ -1,4 +1,4 @@
-// Shared job contract definitions for MasterForge workers and API.
+// Shared job contract definitions for Budi workers and API.
 // Defines the shape of messages passed through the job queue.
 
 export interface AnalyzeJob {

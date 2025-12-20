@@ -1,15 +1,17 @@
 import Fastify from "fastify";
 import jobsRoutes from "./routes/jobs.js";
+import v1Routes from "./routes/v1.js";
 
 const app = Fastify({ logger: true });
 
 // Register application routes
 app.register(jobsRoutes);
+app.register(v1Routes);
 
 app.get("/health", async () => {
   return {
     ok: true,
-    service: "masterforge-api",
+    service: "budi-api",
     time: new Date().toISOString(),
   };
 });

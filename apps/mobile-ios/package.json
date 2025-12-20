@@ -1,5 +1,5 @@
 {
-  "name": "@masterforge/mobile-ios",
+  "name": "@budi/mobile-ios",
   "private": true,
   "scripts": {
     "dev": "node -e \"console.log('iOS app scaffold in Step 4')\"",

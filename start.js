@@ -7,7 +7,7 @@ const server = http.createServer((req, res) => {
   if (req.url === '/health') {
     const response = {
       ok: true,
-      service: 'masterforge-api',
+      service: 'budi-api',
       time: new Date().toISOString(),
     };
     res.writeHead(200, { 'Content-Type': 'application/json' });

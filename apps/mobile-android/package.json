@@ -1,5 +1,5 @@
 {
-  "name": "@masterforge/mobile-android",
+  "name": "@budi/mobile-android",
   "private": true,
   "scripts": {
     "dev": "node -e \"console.log('Android app scaffold in Step 4')\"",

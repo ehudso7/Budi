@@ -6,7 +6,7 @@ import {
   MasterJob,
   CodecPreviewJob,
   Job,
-} from "@masterforge/contracts";
+} from "@budi/contracts";
 
 // Initialize Redis connection. In production you would use a connection pool.
 const redis = new Redis(

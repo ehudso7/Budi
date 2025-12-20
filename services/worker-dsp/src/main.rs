@@ -2,7 +2,7 @@ use redis::AsyncCommands;
 use serde::{Deserialize, Serialize};
 use std::env;
 
-// Job definitions mirror those in @masterforge/contracts.
+// Job definitions mirror those in @budi/contracts.
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "type")]
 enum Job {

@@ -1,11 +1,11 @@
 services:
   postgres:
     image: postgres:16
-    container_name: masterforge-postgres
+    container_name: budi-postgres
     environment:
-      POSTGRES_DB: masterforge
-      POSTGRES_USER: masterforge
-      POSTGRES_PASSWORD: masterforge
+      POSTGRES_DB: budi
+      POSTGRES_USER: budi
+      POSTGRES_PASSWORD: budi
     ports:
       - "5432:5432"
     volumes:
@@ -13,7 +13,7 @@ services:
 
   redis:
     image: redis:7
-    container_name: masterforge-redis
+    container_name: budi-redis
     ports:
       - "6379:6379"
     command: ["redis-server", "--appendonly", "yes"]
@@ -22,7 +22,7 @@ services:
 
   minio:
     image: minio/minio:latest
-    container_name: masterforge-minio
+    container_name: budi-minio
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
@@ -35,7 +35,7 @@ services:
 
   minio-init:
     image: minio/mc:latest
-    container_name: masterforge-minio-init
+    container_name: budi-minio-init
     depends_on:
       - minio
     volumes:
