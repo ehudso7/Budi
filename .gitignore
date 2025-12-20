@@ -5,3 +5,7 @@ node_modules/
 dist/
 build/
 coverage/
+budi_astats.txt
+budi_astats_full.txt
+budi_loudness.txt
+package-lock.json
