@@ -157,3 +157,76 @@ data class ExportRequest(
     val bitDepth: Int = 24,
     val sampleRate: Int = 48000
 )
+
+// Track Export (Release-Ready)
+
+@JsonClass(generateAdapter = true)
+data class TrackExportRequest(
+    val bitDepth: String = "24",
+    val sampleRate: Int = 44100,
+    val truePeakCeilingDb: Double = -2.0,
+    val includeMp3: Boolean = true,
+    val includeAac: Boolean = true
+)
+
+@JsonClass(generateAdapter = true)
+data class ExportJobResponse(
+    val jobId: String,
+    val trackId: String,
+    val status: String,
+    val settings: ExportSettings
+)
+
+@JsonClass(generateAdapter = true)
+data class ExportSettings(
+    val bitDepth: String,
+    val sampleRate: Int,
+    val truePeakCeilingDb: Double,
+    val includeMp3: Boolean,
+    val includeAac: Boolean
+)
+
+@JsonClass(generateAdapter = true)
+data class ExportJobStatus(
+    val id: String,
+    val trackId: String,
+    val trackName: String,
+    val status: String,
+    val settings: ExportSettings,
+    val results: ExportResults? = null,
+    val error: String? = null,
+    val createdAt: String,
+    val completedAt: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class ExportResults(
+    val outputWavUrl: String? = null,
+    val outputMp3Url: String? = null,
+    val outputAacUrl: String? = null,
+    val qcJsonUrl: String? = null,
+    val finalGainDb: Double? = null,
+    val finalTruePeakDbfs: Double? = null,
+    val finalIntegratedLufs: Double? = null,
+    val finalLra: Double? = null,
+    val releaseReadyPasses: Boolean? = null,
+    val attempts: Int? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class TrackExportsResponse(
+    val exports: List<ExportListItem>
+)
+
+@JsonClass(generateAdapter = true)
+data class ExportListItem(
+    val id: String,
+    val status: String,
+    val bitDepth: String,
+    val sampleRate: Int,
+    val truePeakCeilingDb: Double,
+    val releaseReadyPasses: Boolean? = null,
+    val finalTruePeakDbfs: Double? = null,
+    val createdAt: String,
+    val completedAt: String? = null
+)

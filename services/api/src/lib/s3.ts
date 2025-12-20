@@ -104,3 +104,77 @@ export function generateKey(prefix: string, filename: string): string {
 export function getInternalUrl(bucket: string, key: string): string {
   return `${endpoint}/${bucket}/${key}`;
 }
+
+/**
+ * Download a file from S3 to local filesystem
+ */
+export async function downloadFile(
+  sourceUrl: string,
+  destPath: string
+): Promise<void> {
+  // Parse the URL to extract bucket and key
+  // Format: http://localhost:9000/bucket/key or s3://bucket/key
+  let bucket: string;
+  let key: string;
+
+  if (sourceUrl.startsWith('s3://')) {
+    const parts = sourceUrl.slice(5).split('/');
+    bucket = parts[0];
+    key = parts.slice(1).join('/');
+  } else {
+    // HTTP URL format: http://host:port/bucket/key
+    const url = new URL(sourceUrl);
+    const pathParts = url.pathname.slice(1).split('/');
+    bucket = pathParts[0];
+    key = pathParts.slice(1).join('/');
+  }
+
+  const { createWriteStream } = await import('node:fs');
+  const { pipeline } = await import('node:stream/promises');
+  const { Readable } = await import('node:stream');
+
+  const command = new GetObjectCommand({
+    Bucket: bucket,
+    Key: key,
+  });
+
+  const response = await s3Client.send(command);
+
+  if (!response.Body) {
+    throw new Error(`Failed to download file: ${sourceUrl}`);
+  }
+
+  // Convert the response body to a Node.js readable stream
+  const bodyStream = response.Body as Readable;
+  const fileStream = createWriteStream(destPath);
+
+  await pipeline(bodyStream, fileStream);
+}
+
+/**
+ * Upload a file from local filesystem to S3
+ */
+export async function uploadFile(
+  sourcePath: string,
+  bucket: string,
+  key: string,
+  contentType: string
+): Promise<string> {
+  const { createReadStream } = await import('node:fs');
+  const { stat } = await import('node:fs/promises');
+
+  const fileStats = await stat(sourcePath);
+  const fileStream = createReadStream(sourcePath);
+
+  const command = new PutObjectCommand({
+    Bucket: bucket,
+    Key: key,
+    Body: fileStream,
+    ContentType: contentType,
+    ContentLength: fileStats.size,
+  });
+
+  await s3Client.send(command);
+
+  return `${endpoint}/${bucket}/${key}`;
+}

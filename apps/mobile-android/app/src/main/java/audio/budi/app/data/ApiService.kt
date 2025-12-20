@@ -83,6 +83,19 @@ interface ApiService {
         @Body request: ExportRequest
     ): JobStatus
 
+    // Track Export (Release-Ready)
+    @POST("v1/tracks/{id}/exports")
+    suspend fun createTrackExport(
+        @Path("id") id: String,
+        @Body request: TrackExportRequest
+    ): ExportJobResponse
+
+    @GET("v1/exports/{id}")
+    suspend fun getExportJobStatus(@Path("id") id: String): ExportJobStatus
+
+    @GET("v1/tracks/{id}/exports")
+    suspend fun getTrackExports(@Path("id") id: String): TrackExportsResponse
+
     // Jobs
     @GET("v1/jobs")
     suspend fun getJobs(

@@ -40,6 +40,12 @@ class ProjectDetailViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
 
+    private val _exportJobStatus = MutableStateFlow<ExportJobStatus?>(null)
+    val exportJobStatus: StateFlow<ExportJobStatus?> = _exportJobStatus
+
+    private val _isExporting = MutableStateFlow(false)
+    val isExporting: StateFlow<Boolean> = _isExporting
+
     fun loadProject(projectId: String) {
         viewModelScope.launch {
             _isLoading.value = true
@@ -110,6 +116,60 @@ class ProjectDetailViewModel @Inject constructor(
             }
         }
     }
+
+    fun exportTrack(
+        trackId: String,
+        bitDepth: String,
+        sampleRate: Int,
+        truePeakCeilingDb: Double,
+        includeMp3: Boolean,
+        includeAac: Boolean
+    ) {
+        viewModelScope.launch {
+            try {
+                _isExporting.value = true
+                val response = repository.createTrackExport(
+                    trackId = trackId,
+                    bitDepth = bitDepth,
+                    sampleRate = sampleRate,
+                    truePeakCeilingDb = truePeakCeilingDb,
+                    includeMp3 = includeMp3,
+                    includeAac = includeAac
+                )
+                // Poll for status
+                pollExportStatus(response.jobId)
+            } catch (e: Exception) {
+                _isExporting.value = false
+            }
+        }
+    }
+
+    private suspend fun pollExportStatus(jobId: String) {
+        while (true) {
+            try {
+                val status = repository.getExportJobStatus(jobId)
+                _exportJobStatus.value = status
+                when (status.status) {
+                    "completed", "failed" -> {
+                        _isExporting.value = false
+                        // Refresh tracks to show updated export info
+                        _project.value?.let { loadProject(it.id) }
+                        break
+                    }
+                    else -> {
+                        kotlinx.coroutines.delay(2000)
+                    }
+                }
+            } catch (e: Exception) {
+                _isExporting.value = false
+                break
+            }
+        }
+    }
+
+    fun clearExportStatus() {
+        _exportJobStatus.value = null
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -124,8 +184,11 @@ fun ProjectDetailScreen(
     val selectedTrack by viewModel.selectedTrack.collectAsState()
     val analysis by viewModel.analysis.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val exportJobStatus by viewModel.exportJobStatus.collectAsState()
+    val isExporting by viewModel.isExporting.collectAsState()
 
     var showMasterDialog by remember { mutableStateOf(false) }
+    var showExportDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(projectId) {
         viewModel.loadProject(projectId)
@@ -193,6 +256,7 @@ fun ProjectDetailScreen(
                             onClick = { viewModel.selectTrack(track) },
                             onAnalyze = { viewModel.analyzeTrack(track.id) },
                             onMaster = { showMasterDialog = true },
+                            onExport = { showExportDialog = true },
                             onDelete = { viewModel.deleteTrack(track.id) }
                         )
                     }
@@ -215,6 +279,36 @@ fun ProjectDetailScreen(
             }
         )
     }
+
+    if (showExportDialog && selectedTrack != null) {
+        ExportDialog(
+            trackName = selectedTrack!!.name,
+            isExporting = isExporting,
+            onDismiss = {
+                showExportDialog = false
+                viewModel.clearExportStatus()
+            },
+            onExport = { bitDepth, sampleRate, truePeakCeilingDb, includeMp3, includeAac ->
+                viewModel.exportTrack(
+                    trackId = selectedTrack!!.id,
+                    bitDepth = bitDepth,
+                    sampleRate = sampleRate,
+                    truePeakCeilingDb = truePeakCeilingDb,
+                    includeMp3 = includeMp3,
+                    includeAac = includeAac
+                )
+            }
+        )
+    }
+
+    // Show export completion snackbar
+    LaunchedEffect(exportJobStatus) {
+        exportJobStatus?.let { status ->
+            if (status.status == "completed") {
+                showExportDialog = false
+            }
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -225,6 +319,7 @@ fun TrackCard(
     onClick: () -> Unit,
     onAnalyze: () -> Unit,
     onMaster: () -> Unit,
+    onExport: () -> Unit,
     onDelete: () -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
@@ -287,6 +382,15 @@ fun TrackCard(
                             showMenu = false
                         },
                         leadingIcon = { Icon(Icons.Default.Tune, null) },
+                        enabled = track.analysisReportId != null
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Export") },
+                        onClick = {
+                            onExport()
+                            showMenu = false
+                        },
+                        leadingIcon = { Icon(Icons.Default.Download, null) },
                         enabled = track.analysisReportId != null
                     )
                     Divider()
@@ -437,6 +541,142 @@ fun MasterDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+fun ExportDialog(
+    trackName: String,
+    isExporting: Boolean,
+    onDismiss: () -> Unit,
+    onExport: (bitDepth: String, sampleRate: Int, truePeakCeilingDb: Double, includeMp3: Boolean, includeAac: Boolean) -> Unit
+) {
+    var bitDepth by remember { mutableStateOf("24") }
+    var sampleRate by remember { mutableStateOf(44100) }
+    var truePeakCeiling by remember { mutableStateOf(-2.0f) }
+    var includeMp3 by remember { mutableStateOf(true) }
+    var includeAac by remember { mutableStateOf(true) }
+
+    AlertDialog(
+        onDismissRequest = { if (!isExporting) onDismiss() },
+        title = { Text("Export: $trackName") },
+        text = {
+            Column {
+                // Bit Depth
+                Text("Bit Depth", style = MaterialTheme.typography.labelMedium)
+                Spacer(modifier = Modifier.height(8.dp))
+                listOf(
+                    "16" to "16-bit (with dither)",
+                    "24" to "24-bit (recommended)",
+                    "32f" to "32-bit float (studio)"
+                ).forEach { (value, label) ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(
+                            selected = bitDepth == value,
+                            onClick = { bitDepth = value },
+                            enabled = !isExporting
+                        )
+                        Text(label)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Sample Rate
+                Text("Sample Rate", style = MaterialTheme.typography.labelMedium)
+                Spacer(modifier = Modifier.height(8.dp))
+                listOf(
+                    44100 to "44.1 kHz (CD/Streaming)",
+                    48000 to "48 kHz (Video/Broadcast)"
+                ).forEach { (value, label) ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(
+                            selected = sampleRate == value,
+                            onClick = { sampleRate = value },
+                            enabled = !isExporting
+                        )
+                        Text(label)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // True Peak Ceiling
+                Text(
+                    "True Peak Ceiling: ${String.format("%.1f", truePeakCeiling)} dBTP",
+                    style = MaterialTheme.typography.labelMedium
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Slider(
+                    value = truePeakCeiling,
+                    onValueChange = { truePeakCeiling = it },
+                    valueRange = -6f..-0.5f,
+                    steps = 10,
+                    enabled = !isExporting
+                )
+                Text(
+                    "Release-ready gate: exports will be re-rendered until True Peak ≤ ceiling",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Lossy formats
+                Text("Include Formats", style = MaterialTheme.typography.labelMedium)
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(
+                        checked = includeMp3,
+                        onCheckedChange = { includeMp3 = it },
+                        enabled = !isExporting
+                    )
+                    Text("MP3 (320 kbps)")
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(
+                        checked = includeAac,
+                        onCheckedChange = { includeAac = it },
+                        enabled = !isExporting
+                    )
+                    Text("AAC (256 kbps)")
+                }
+
+                if (isExporting) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Exporting...")
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    onExport(bitDepth, sampleRate, truePeakCeiling.toDouble(), includeMp3, includeAac)
+                },
+                enabled = !isExporting
+            ) {
+                Text("Export")
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                enabled = !isExporting
+            ) {
                 Text("Cancel")
             }
         }

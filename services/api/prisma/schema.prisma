@@ -69,6 +69,7 @@ model Track {
   masters         Master[]
   codecPreviews   CodecPreview[]
   jobs            Job[]
+  exportJobs      ExportJob[]     // Release-Ready exports
 
   @@index([projectId])
 }
@@ -279,7 +280,57 @@ model Export {
 
 enum ExportStatus {
   PENDING
+  QUEUED
   PROCESSING
+  SUCCEEDED
   COMPLETED
   FAILED
+}
+
+enum AudioBitDepth {
+  BD_16      // 16-bit with dithering
+  BD_24      // 24-bit (default, distribution safe)
+  BD_32F     // 32-bit float (studio/archival)
+}
+
+// Individual track export job (Release-Ready Export)
+model ExportJob {
+  id                  String         @id @default(cuid())
+  trackId             String
+  track               Track          @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  status              ExportStatus   @default(QUEUED)
+
+  // Requested settings
+  bitDepth            AudioBitDepth  @default(BD_24)
+  sampleRate          Int            @default(44100)
+  truePeakCeilingDb   Float          @default(-2.0)  // dBTP ceiling for Release-Ready gate
+  includeMp3          Boolean        @default(true)
+  includeAac          Boolean        @default(true)
+
+  // Input verification
+  inputSha256         String?
+
+  // Output URLs (stored in MinIO/S3)
+  outputWavUrl        String?
+  outputMp3Url        String?
+  outputAacUrl        String?
+  qcJsonUrl           String?
+
+  // Final metrics after Release-Ready processing
+  finalGainDb         Float?         // Gain applied to meet ceiling
+  finalTruePeakDbfs   Float?
+  finalIntegratedLufs Float?
+  finalLra            Float?
+  releaseReadyPasses  Boolean?       // True if met ceiling requirement
+  attempts            Int            @default(0)    // Number of render attempts
+
+  // Error handling
+  errorMessage        String?
+
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+  completedAt         DateTime?
+
+  @@index([trackId, createdAt])
+  @@index([status, createdAt])
 }

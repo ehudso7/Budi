@@ -102,6 +102,27 @@ export const exportProjectSchema = z.object({
 });
 
 // ============================================================================
+// Track Export (Release-Ready) schemas
+// ============================================================================
+
+export const bitDepthSchema = z.enum(["16", "24", "32f"]);
+
+export const sampleRateSchema = z.enum(["44100", "48000"]).transform((v) => parseInt(v));
+
+export const trackExportSchema = z.object({
+  /** Bit depth: 16 (with dither), 24 (default, distribution safe), 32f (studio/archival) */
+  bitDepth: bitDepthSchema.default("24"),
+  /** Sample rate: 44100 (default) or 48000 */
+  sampleRate: z.number().int().refine((n) => n === 44100 || n === 48000).default(44100),
+  /** True peak ceiling in dBTP (default -2.0 for Release-Ready compliance) */
+  truePeakCeilingDb: z.number().min(-20).max(0).default(-2.0),
+  /** Include MP3 320kbps output */
+  includeMp3: z.boolean().default(true),
+  /** Include AAC 256kbps output */
+  includeAac: z.boolean().default(true),
+});
+
+// ============================================================================
 // Auth schemas
 // ============================================================================
 
@@ -126,3 +147,4 @@ export type MasterTrackInput = z.infer<typeof masterTrackSchema>;
 export type CodecPreviewInput = z.infer<typeof codecPreviewSchema>;
 export type AlbumMasterInput = z.infer<typeof albumMasterSchema>;
 export type ExportProjectInput = z.infer<typeof exportProjectSchema>;
+export type TrackExportInput = z.infer<typeof trackExportSchema>;

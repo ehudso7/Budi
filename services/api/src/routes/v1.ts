@@ -12,6 +12,7 @@ import {
   codecPreviewSchema,
   albumMasterSchema,
   exportProjectSchema,
+  trackExportSchema,
 } from "../lib/validation.js";
 import type {
   AnalyzeJob,
@@ -1001,6 +1002,235 @@ const v1Routes: FastifyPluginAsync = async (app) => {
       const downloadUrl = await getDownloadUrl(BUCKETS.AUDIO, key, 3600);
 
       reply.send({ downloadUrl, format, expiresIn: 3600 });
+    }
+  );
+
+  // ============================================================================
+  // Track Export (Release-Ready) Routes
+  // ============================================================================
+
+  /**
+   * Create a Release-Ready export job for a track
+   *
+   * Features:
+   * - Default 24-bit WAV output (distribution safe)
+   * - Selectable bit depth: 16 (with dither), 24 (default), 32f
+   * - True peak ceiling enforcement (default -2.0 dBTP)
+   * - Automatic gain reduction to meet ceiling
+   * - Optional MP3 and AAC outputs
+   */
+  app.post<{
+    Params: { trackId: string };
+    Body: {
+      bitDepth?: string;
+      sampleRate?: number;
+      truePeakCeilingDb?: number;
+      includeMp3?: boolean;
+      includeAac?: boolean;
+    };
+  }>(
+    "/v1/tracks/:trackId/exports",
+    { preHandler: [app.authenticate] },
+    async (request, reply) => {
+      const { trackId } = request.params;
+
+      // Validate request body with defaults
+      const parsed = trackExportSchema.safeParse(request.body || {});
+      if (!parsed.success) {
+        return reply.code(400).send({
+          error: "Validation failed",
+          details: parsed.error.issues,
+        });
+      }
+
+      const { bitDepth, sampleRate, truePeakCeilingDb, includeMp3, includeAac } = parsed.data;
+
+      // Verify track exists and belongs to user
+      const track = await prisma.track.findFirst({
+        where: {
+          id: trackId,
+          project: { userId: request.userId },
+        },
+        include: {
+          masters: { orderBy: { createdAt: "desc" }, take: 1 },
+        },
+      });
+
+      if (!track) {
+        return reply.code(404).send({ error: "Track not found" });
+      }
+
+      // Determine source file (prefer latest master, then fixed, then original)
+      const latestMaster = track.masters[0];
+      let sourceUrl = track.originalUrl;
+      if (latestMaster?.wavHdUrl) {
+        sourceUrl = latestMaster.wavHdUrl;
+      } else if (track.fixedUrl) {
+        sourceUrl = track.fixedUrl;
+      }
+
+      // Map bit depth string to enum
+      const bitDepthEnum = bitDepth === "16" ? "BD_16" : bitDepth === "32f" ? "BD_32F" : "BD_24";
+
+      // Create export job record
+      const exportJob = await prisma.exportJob.create({
+        data: {
+          trackId,
+          status: "QUEUED",
+          bitDepth: bitDepthEnum,
+          sampleRate,
+          truePeakCeilingDb,
+          includeMp3,
+          includeAac,
+        },
+      });
+
+      // Create job record for tracking
+      const jobId = generateId("job_");
+      await prisma.job.create({
+        data: {
+          id: jobId,
+          trackId,
+          type: "EXPORT",
+          status: "QUEUED",
+          payload: {
+            exportJobId: exportJob.id,
+            trackId,
+            sourceUrl,
+            bitDepth,
+            sampleRate,
+            truePeakCeilingDb,
+            includeMp3,
+            includeAac,
+          },
+        },
+      });
+
+      // Enqueue for worker processing
+      await enqueueJob(QUEUES.DSP_JOBS, {
+        type: "track-export",
+        jobId,
+        exportJobId: exportJob.id,
+        trackId,
+        sourceUrl,
+        bitDepth,
+        sampleRate,
+        truePeakCeilingDb,
+        includeMp3,
+        includeAac,
+      });
+
+      reply.code(202).send({
+        jobId: exportJob.id,
+        trackId,
+        status: "queued",
+        settings: {
+          bitDepth,
+          sampleRate,
+          truePeakCeilingDb,
+          includeMp3,
+          includeAac,
+        },
+      });
+    }
+  );
+
+  /** Get export job status and results */
+  app.get<{ Params: { exportJobId: string } }>(
+    "/v1/exports/:exportJobId",
+    { preHandler: [app.authenticate] },
+    async (request, reply) => {
+      const { exportJobId } = request.params;
+
+      const exportJob = await prisma.exportJob.findFirst({
+        where: {
+          id: exportJobId,
+          track: { project: { userId: request.userId } },
+        },
+        include: {
+          track: { select: { id: true, name: true } },
+        },
+      });
+
+      if (!exportJob) {
+        return reply.code(404).send({ error: "Export job not found" });
+      }
+
+      // Map status to lowercase
+      const status = exportJob.status.toLowerCase();
+
+      reply.send({
+        id: exportJob.id,
+        trackId: exportJob.trackId,
+        trackName: exportJob.track.name,
+        status,
+        settings: {
+          bitDepth: exportJob.bitDepth.replace("BD_", "").toLowerCase().replace("f", "f"),
+          sampleRate: exportJob.sampleRate,
+          truePeakCeilingDb: exportJob.truePeakCeilingDb,
+          includeMp3: exportJob.includeMp3,
+          includeAac: exportJob.includeAac,
+        },
+        results:
+          status === "succeeded"
+            ? {
+                outputWavUrl: exportJob.outputWavUrl,
+                outputMp3Url: exportJob.outputMp3Url,
+                outputAacUrl: exportJob.outputAacUrl,
+                qcJsonUrl: exportJob.qcJsonUrl,
+                finalGainDb: exportJob.finalGainDb,
+                finalTruePeakDbfs: exportJob.finalTruePeakDbfs,
+                finalIntegratedLufs: exportJob.finalIntegratedLufs,
+                finalLra: exportJob.finalLra,
+                releaseReadyPasses: exportJob.releaseReadyPasses,
+                attempts: exportJob.attempts,
+              }
+            : null,
+        error: exportJob.errorMessage,
+        createdAt: exportJob.createdAt,
+        completedAt: exportJob.completedAt,
+      });
+    }
+  );
+
+  /** List export jobs for a track */
+  app.get<{ Params: { trackId: string } }>(
+    "/v1/tracks/:trackId/exports",
+    { preHandler: [app.authenticate] },
+    async (request, reply) => {
+      const { trackId } = request.params;
+
+      // Verify track belongs to user
+      const track = await prisma.track.findFirst({
+        where: {
+          id: trackId,
+          project: { userId: request.userId },
+        },
+      });
+
+      if (!track) {
+        return reply.code(404).send({ error: "Track not found" });
+      }
+
+      const exportJobs = await prisma.exportJob.findMany({
+        where: { trackId },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+      });
+
+      reply.send({
+        exports: exportJobs.map((e) => ({
+          id: e.id,
+          status: e.status.toLowerCase(),
+          bitDepth: e.bitDepth.replace("BD_", "").toLowerCase().replace("f", "f"),
+          sampleRate: e.sampleRate,
+          truePeakCeilingDb: e.truePeakCeilingDb,
+          releaseReadyPasses: e.releaseReadyPasses,
+          finalTruePeakDbfs: e.finalTruePeakDbfs,
+          createdAt: e.createdAt,
+          completedAt: e.completedAt,
+        })),
+      });
     }
   );
 };

@@ -24,6 +24,17 @@ export async function enqueueJob<T extends object>(
 }
 
 /**
+ * Dequeue a job from the specified queue (blocking with timeout)
+ */
+export async function dequeueJob(
+  queue: string,
+  timeoutSecs = 5
+): Promise<string | null> {
+  const result = await redis.brpop(queue, timeoutSecs);
+  return result ? result[1] : null;
+}
+
+/**
  * Publish a job result
  */
 export async function publishResult(jobId: string, result: object): Promise<void> {

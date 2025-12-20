@@ -155,3 +155,61 @@ struct ExportStatus: Decodable, Identifiable {
     let createdAt: Date
     let completedAt: Date?
 }
+
+// MARK: - Track Export (Release-Ready)
+
+struct ExportJobResponse: Decodable {
+    let jobId: String
+    let trackId: String
+    let status: String
+    let settings: ExportSettings
+}
+
+struct ExportSettings: Decodable {
+    let bitDepth: String
+    let sampleRate: Int
+    let truePeakCeilingDb: Double
+    let includeMp3: Bool
+    let includeAac: Bool
+}
+
+struct ExportJobStatus: Decodable, Identifiable {
+    let id: String
+    let trackId: String
+    let trackName: String
+    let status: String
+    let settings: ExportSettings
+    let results: ExportResults?
+    let error: String?
+    let createdAt: Date
+    let completedAt: Date?
+}
+
+struct ExportResults: Decodable {
+    let outputWavUrl: String?
+    let outputMp3Url: String?
+    let outputAacUrl: String?
+    let qcJsonUrl: String?
+    let finalGainDb: Double?
+    let finalTruePeakDbfs: Double?
+    let finalIntegratedLufs: Double?
+    let finalLra: Double?
+    let releaseReadyPasses: Bool?
+    let attempts: Int?
+}
+
+struct TrackExportsResponse: Decodable {
+    let exports: [ExportListItem]
+}
+
+struct ExportListItem: Decodable, Identifiable {
+    let id: String
+    let status: String
+    let bitDepth: String
+    let sampleRate: Int
+    let truePeakCeilingDb: Double
+    let releaseReadyPasses: Bool?
+    let finalTruePeakDbfs: Double?
+    let createdAt: Date
+    let completedAt: Date?
+}

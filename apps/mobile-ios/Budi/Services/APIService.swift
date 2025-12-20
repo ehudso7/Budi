@@ -94,6 +94,34 @@ class APIService {
         return try await get("/v1/jobs/\(jobId)")
     }
 
+    // MARK: - Track Export (Release-Ready)
+
+    func createTrackExport(
+        trackId: String,
+        bitDepth: String,
+        sampleRate: Int,
+        truePeakCeilingDb: Double,
+        includeMp3: Bool,
+        includeAac: Bool
+    ) async throws -> ExportJobResponse {
+        let body: [String: Any] = [
+            "bitDepth": bitDepth,
+            "sampleRate": sampleRate,
+            "truePeakCeilingDb": truePeakCeilingDb,
+            "includeMp3": includeMp3,
+            "includeAac": includeAac
+        ]
+        return try await post("/v1/tracks/\(trackId)/exports", body: body)
+    }
+
+    func getExportJobStatus(jobId: String) async throws -> ExportJobStatus {
+        return try await get("/v1/exports/\(jobId)")
+    }
+
+    func getTrackExports(trackId: String) async throws -> TrackExportsResponse {
+        return try await get("/v1/tracks/\(trackId)/exports")
+    }
+
     // MARK: - Reports
 
     func getReports(trackId: String) async throws -> ReportsResponse {

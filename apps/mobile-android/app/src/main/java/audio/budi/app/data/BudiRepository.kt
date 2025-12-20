@@ -65,6 +65,25 @@ class BudiRepository @Inject constructor(
         sampleRate: Int = 48000
     ): JobStatus = apiService.exportMaster(masterId, ExportRequest(format, bitDepth, sampleRate))
 
+    // Track Export (Release-Ready)
+    suspend fun createTrackExport(
+        trackId: String,
+        bitDepth: String = "24",
+        sampleRate: Int = 44100,
+        truePeakCeilingDb: Double = -2.0,
+        includeMp3: Boolean = true,
+        includeAac: Boolean = true
+    ): ExportJobResponse = apiService.createTrackExport(
+        trackId,
+        TrackExportRequest(bitDepth, sampleRate, truePeakCeilingDb, includeMp3, includeAac)
+    )
+
+    suspend fun getExportJobStatus(jobId: String): ExportJobStatus =
+        apiService.getExportJobStatus(jobId)
+
+    suspend fun getTrackExports(trackId: String): List<ExportListItem> =
+        apiService.getTrackExports(trackId).exports
+
     // Jobs
     suspend fun getJobs(status: String? = null, type: String? = null): List<JobStatus> =
         apiService.getJobs(status, type)
