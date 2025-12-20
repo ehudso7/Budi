@@ -91,11 +91,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build
-        run: pnpm turbo run build
-
       - name: Generate Prisma client
         run: pnpm --filter api prisma generate
+
+      - name: Build
+        run: pnpm turbo run build
 
   # Build Rust workers
   build-rust:
