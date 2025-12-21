@@ -6,6 +6,8 @@ import { registerRateLimiter } from "./middleware/rateLimiter.js";
 import { registerSecurity } from "./middleware/security.js";
 import v1Routes from "./routes/v1.js";
 import webhookRoutes from "./routes/webhooks.js";
+import billingRoutes from "./routes/billing.js";
+import stripeWebhookRoutes from "./routes/stripeWebhook.js";
 
 export async function buildApp() {
   const app = Fastify({
@@ -32,6 +34,10 @@ export async function buildApp() {
   // Register routes
   app.register(v1Routes);
   app.register(webhookRoutes);
+  app.register(billingRoutes);
+
+  // Register Stripe webhook in encapsulated scope (needs raw body parser)
+  app.register(stripeWebhookRoutes);
 
   // Health check endpoint
   app.get("/health", async () => {
