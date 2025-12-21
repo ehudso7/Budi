@@ -2,6 +2,8 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import { registerAuth } from "./lib/auth.js";
+import { registerRateLimiter } from "./middleware/rateLimiter.js";
+import { registerSecurity } from "./middleware/security.js";
 import v1Routes from "./routes/v1.js";
 import webhookRoutes from "./routes/webhooks.js";
 
@@ -20,6 +22,12 @@ export async function buildApp() {
 
   // Register JWT authentication
   await registerAuth(app);
+
+  // Register rate limiting
+  await registerRateLimiter(app);
+
+  // Register security middleware
+  await registerSecurity(app);
 
   // Register routes
   app.register(v1Routes);
