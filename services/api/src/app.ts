@@ -10,6 +10,9 @@ import billingRoutes from "./routes/billing.js";
 import stripeWebhookRoutes from "./routes/stripeWebhook.js";
 import notificationRoutes from "./routes/notifications.js";
 import iapRoutes from "./routes/iap.js";
+import observabilityRoutes from "./routes/observability.js";
+import { createMetricsHook } from "./lib/metrics.js";
+import { errorHandler } from "./lib/errorTracking.js";
 
 export async function buildApp() {
   const app = Fastify({
@@ -42,6 +45,13 @@ export async function buildApp() {
   app.register(stripeWebhookRoutes);
   app.register(notificationRoutes);
   app.register(iapRoutes);
+  app.register(observabilityRoutes);
+
+  // Add metrics collection hook
+  app.addHook("onRequest", createMetricsHook());
+
+  // Set custom error handler
+  app.setErrorHandler(errorHandler);
 
   // Health check endpoint
   app.get("/health", async () => {
