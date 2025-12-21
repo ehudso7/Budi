@@ -1,12 +1,11 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
-  "installCommand": "pnpm install",
-  "buildCommand": "pnpm turbo run build --filter=@budi/api && mkdir -p public && echo '<!DOCTYPE html><html><head><meta http-equiv=\"refresh\" content=\"0;url=/api\"></head><body>Redirecting to API...</body></html>' > public/index.html",
-  "outputDirectory": "public",
+  "installCommand": "pnpm install --prod=false",
+  "buildCommand": "pnpm turbo run build --filter=@budi/api",
   "framework": null,
   "functions": {
-    "services/api/api/index.ts": {
+    "api/index.ts": {
       "memory": 1024,
       "maxDuration": 30,
       "includeFiles": "services/api/**"
