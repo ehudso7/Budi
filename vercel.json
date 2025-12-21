@@ -9,7 +9,7 @@
     "services/api/api/index.ts": {
       "memory": 1024,
       "maxDuration": 30,
-      "includeFiles": "services/api/{dist,generated}/**"
+      "includeFiles": "services/api/**"
     }
   },
   "rewrites": [
