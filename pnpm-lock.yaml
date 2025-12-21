@@ -16,7 +16,11 @@ importers:
 
   apps/mobile-ios: {}
 
-  packages/contracts: {}
+  packages/contracts:
+    devDependencies:
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
 
   services/api:
     dependencies:
