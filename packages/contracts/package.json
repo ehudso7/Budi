@@ -10,7 +10,6 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "node -e \"console.log('No lint configured for contracts')\"",
     "test": "node -e \"console.log('No tests for contracts')\""
-    "lint": "node -e \"console.log('No lint configured for contracts')\""
   },
   "devDependencies": {
     "typescript": "^5.7.2"
