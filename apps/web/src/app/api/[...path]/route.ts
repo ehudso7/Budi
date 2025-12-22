@@ -1,19 +1,27 @@
 // Next.js App Router API Route - Wraps Fastify API
 import { NextRequest, NextResponse } from "next/server";
+import type { FastifyInstance } from "fastify";
 
 // Dynamic import to avoid build-time issues
-let appPromise: Promise<any> | null = null;
-let app: any = null;
+let appPromise: Promise<FastifyInstance> | null = null;
+let app: FastifyInstance | null = null;
+let initAttempts = 0;
+const MAX_INIT_ATTEMPTS = 3;
 
-async function getApp() {
+async function getApp(): Promise<FastifyInstance> {
   if (!app) {
     if (!appPromise) {
+      if (initAttempts >= MAX_INIT_ATTEMPTS) {
+        throw new Error(`Failed to initialize app after ${MAX_INIT_ATTEMPTS} attempts`);
+      }
+      initAttempts++;
       appPromise = (async () => {
         try {
           // Import the built Fastify app
           const { buildApp } = await import("@budi/api");
           const instance = await buildApp();
           await instance.ready();
+          initAttempts = 0; // Reset on success
           return instance;
         } catch (error) {
           appPromise = null;
@@ -41,9 +49,11 @@ async function handler(req: NextRequest) {
     });
 
     // Get the request body for non-GET requests
-    let body: string | undefined;
+    // Use Buffer to preserve raw bytes for webhook signature verification
+    let body: Buffer | undefined;
     if (req.method !== "GET" && req.method !== "HEAD") {
-      body = await req.text();
+      const arrayBuffer = await req.arrayBuffer();
+      body = Buffer.from(arrayBuffer);
     }
 
     // Use Fastify's inject to handle the request
@@ -90,6 +100,6 @@ export const PATCH = handler;
 export const HEAD = handler;
 export const OPTIONS = handler;
 
-// Disable body parsing to handle raw bodies (needed for webhooks)
+// Use Node.js runtime and force dynamic rendering for API routes
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
