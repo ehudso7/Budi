@@ -6,7 +6,7 @@ const nextConfig = {
   },
   // Transpile workspace packages for Next.js
   transpilePackages: ["@budi/api", "@budi/contracts"],
-  // Disable static generation for API routes that use Fastify
+  // Mark Node.js-specific packages as external to prevent bundling issues
   experimental: {
     serverComponentsExternalPackages: [
       "fastify",
