@@ -78,6 +78,8 @@ test.describe('Settings & Profile', () => {
               user: { ...TEST_USER, name: 'Updated Name' },
             }),
           });
+        } else {
+          await route.continue();
         }
       });
 
@@ -502,6 +504,8 @@ test.describe('Notifications', () => {
     await page.route('**/api/v1/notifications/1', async (route) => {
       if (route.request().method() === 'PATCH') {
         await route.fulfill({ status: 200 });
+      } else {
+        await route.continue();
       }
     });
 
