@@ -283,8 +283,11 @@ test.describe('Track Management', () => {
       const fileInput = page.locator('input[type="file"]');
       if ((await fileInput.count()) > 0) {
         const multipleAttr = await fileInput.getAttribute('multiple');
-        // Some implementations support multiple files
-        expect(multipleAttr !== null || true).toBeTruthy();
+        // Verify multiple file upload is supported if the attribute exists
+        // Some implementations may not support multiple files
+        if (multipleAttr !== null) {
+          expect(multipleAttr).toBeDefined();
+        }
       }
     });
   });
