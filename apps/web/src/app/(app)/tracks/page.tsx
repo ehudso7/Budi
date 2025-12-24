@@ -83,9 +83,6 @@ export default function TracksPage() {
                     </CardDescription>
                   </div>
                 </div>
-                <Button asChild>
-                  <Link href={`/projects/${project.id}`}>
-                    Upload Tracks
                 <Button variant="default" size="sm" asChild>
                   <Link href={`/projects/${project.id}`}>
                     {project.trackCount === 0 ? "Upload Tracks" : "View Tracks"}
