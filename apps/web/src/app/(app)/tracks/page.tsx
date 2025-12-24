@@ -29,7 +29,6 @@ export default function TracksPage() {
   const filteredProjects = projects.filter((project) =>
     project.name.toLowerCase().includes(search.toLowerCase())
   );
-  const projectsWithTracks = filteredProjects.filter((p) => p.trackCount > 0);
 
   return (
     <div className="space-y-6">
@@ -67,9 +66,9 @@ export default function TracksPage() {
             </Card>
           ))}
         </div>
-      ) : projectsWithTracks.length > 0 ? (
+      ) : filteredProjects.length > 0 ? (
         <div className="space-y-4">
-          {projectsWithTracks.map((project) => (
+          {filteredProjects.map((project) => (
             <Card key={project.id}>
               <CardHeader className="flex flex-row items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -84,9 +83,9 @@ export default function TracksPage() {
                     </CardDescription>
                   </div>
                 </div>
-                <Button variant="ghost" size="sm" asChild>
+                <Button asChild>
                   <Link href={`/projects/${project.id}`}>
-                    View Project
+                    Upload Tracks
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>
                 </Button>
