@@ -13,6 +13,32 @@ const endpoint = process.env.MINIO_ENDPOINT || "http://localhost:9000";
 const accessKeyId = process.env.MINIO_ACCESS_KEY || "minioadmin";
 const secretAccessKey = process.env.MINIO_SECRET_KEY || "minioadmin";
 
+/**
+ * Check if S3/MinIO is properly configured for production use
+ */
+export function isS3Configured(): boolean {
+  // Check if using default localhost endpoint (not valid in production)
+  if (!process.env.MINIO_ENDPOINT || process.env.MINIO_ENDPOINT.includes("localhost")) {
+    return false;
+  }
+  // Check if credentials are set (not defaults)
+  if (!process.env.MINIO_ACCESS_KEY || !process.env.MINIO_SECRET_KEY) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Get S3 configuration status for debugging
+ */
+export function getS3ConfigStatus(): { configured: boolean; endpoint: string; hasCredentials: boolean } {
+  return {
+    configured: isS3Configured(),
+    endpoint: endpoint.replace(/\/\/.*:.*@/, "//***:***@"), // Hide credentials if in URL
+    hasCredentials: !!(process.env.MINIO_ACCESS_KEY && process.env.MINIO_SECRET_KEY),
+  };
+}
+
 export const s3Client = new S3Client({
   endpoint,
   region: "us-east-1", // MinIO requires a region but doesn't use it
