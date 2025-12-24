@@ -14,7 +14,7 @@ const billingRoutes: FastifyPluginAsync = async (app) => {
   /**
    * Get available plans and pricing - always available (doesn't require Stripe)
    */
-  app.get("/api/v1/billing/plans", async () => {
+  app.get("/v1/billing/plans", async () => {
     return {
       plans: [
         {
@@ -85,25 +85,25 @@ const billingRoutes: FastifyPluginAsync = async (app) => {
   // Check if Stripe is configured for payment-related routes
   if (!stripe) {
     // Register stub routes that return 503 for payment-related endpoints only
-    app.get("/api/v1/billing/subscription", { preHandler: [app.authenticate] }, async (_request, reply) => {
+    app.get("/v1/billing/subscription", { preHandler: [app.authenticate] }, async (_request, reply) => {
       reply.code(503).send({
         error: "Service Unavailable",
         message: "Billing is not configured",
       });
     });
-    app.post("/api/v1/billing/checkout", { preHandler: [app.authenticate] }, async (_request, reply) => {
+    app.post("/v1/billing/checkout", { preHandler: [app.authenticate] }, async (_request, reply) => {
       reply.code(503).send({
         error: "Service Unavailable",
         message: "Billing is not configured",
       });
     });
-    app.post("/api/v1/billing/portal", { preHandler: [app.authenticate] }, async (_request, reply) => {
+    app.post("/v1/billing/portal", { preHandler: [app.authenticate] }, async (_request, reply) => {
       reply.code(503).send({
         error: "Service Unavailable",
         message: "Billing is not configured",
       });
     });
-    app.get("/api/v1/billing/invoices", { preHandler: [app.authenticate] }, async (_request, reply) => {
+    app.get("/v1/billing/invoices", { preHandler: [app.authenticate] }, async (_request, reply) => {
       reply.code(503).send({
         error: "Service Unavailable",
         message: "Billing is not configured",
@@ -116,7 +116,7 @@ const billingRoutes: FastifyPluginAsync = async (app) => {
    * Get current subscription status
    */
   app.get(
-    "/api/v1/billing/subscription",
+    "/v1/billing/subscription",
     { preHandler: [app.authenticate] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const userId = request.userId!;
@@ -146,7 +146,7 @@ const billingRoutes: FastifyPluginAsync = async (app) => {
       cancelUrl: string;
     };
   }>(
-    "/api/v1/billing/checkout",
+    "/v1/billing/checkout",
     { preHandler: [app.authenticate] },
     async (request, reply) => {
       const userId = request.userId!;
@@ -193,7 +193,7 @@ const billingRoutes: FastifyPluginAsync = async (app) => {
   app.post<{
     Body: { returnUrl: string };
   }>(
-    "/api/v1/billing/portal",
+    "/v1/billing/portal",
     { preHandler: [app.authenticate] },
     async (request, reply) => {
       const userId = request.userId!;
@@ -223,7 +223,7 @@ const billingRoutes: FastifyPluginAsync = async (app) => {
    * Get invoices for current user
    */
   app.get(
-    "/api/v1/billing/invoices",
+    "/v1/billing/invoices",
     { preHandler: [app.authenticate] },
     async (request: FastifyRequest) => {
       const userId = request.userId!;

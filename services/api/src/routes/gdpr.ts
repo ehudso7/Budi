@@ -7,7 +7,7 @@ const gdprRoutes: FastifyPluginAsync = async (app) => {
    * Export user data (GDPR Article 20 - Data Portability)
    */
   app.get(
-    "/api/v1/me/data-export",
+    "/v1/me/data-export",
     { preHandler: [app.authenticate] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const userId = request.userId!;
@@ -37,7 +37,7 @@ const gdprRoutes: FastifyPluginAsync = async (app) => {
    * Delete user account and all data (GDPR Article 17 - Right to Erasure)
    */
   app.delete(
-    "/api/v1/me/account",
+    "/v1/me/account",
     { preHandler: [app.authenticate] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const userId = request.userId!;
@@ -64,7 +64,7 @@ const gdprRoutes: FastifyPluginAsync = async (app) => {
    * Get consent status
    */
   app.get(
-    "/api/v1/me/consent",
+    "/v1/me/consent",
     { preHandler: [app.authenticate] },
     async (request: FastifyRequest) => {
       const userId = request.userId!;
@@ -77,7 +77,7 @@ const gdprRoutes: FastifyPluginAsync = async (app) => {
   /**
    * Privacy policy acknowledgment
    */
-  app.get("/api/v1/privacy", async () => {
+  app.get("/v1/privacy", async () => {
     return {
       version: "1.0.0",
       lastUpdated: "2024-01-01",
@@ -112,10 +112,10 @@ const gdprRoutes: FastifyPluginAsync = async (app) => {
         },
       ],
       rights: [
-        "Right to access your data (GET /api/v1/me/data-export)",
+        "Right to access your data (GET /v1/me/data-export)",
         "Right to rectification (contact support)",
-        "Right to erasure (DELETE /api/v1/me/account)",
-        "Right to data portability (GET /api/v1/me/data-export)",
+        "Right to erasure (DELETE /v1/me/account)",
+        "Right to data portability (GET /v1/me/data-export)",
         "Right to object (contact support)",
       ],
       contact: {
@@ -128,7 +128,7 @@ const gdprRoutes: FastifyPluginAsync = async (app) => {
   /**
    * Cookie consent information
    */
-  app.get("/api/v1/cookies", async () => {
+  app.get("/v1/cookies", async () => {
     return {
       cookies: [
         {

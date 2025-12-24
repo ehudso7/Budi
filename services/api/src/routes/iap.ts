@@ -16,7 +16,7 @@ const iapRoutes: FastifyPluginAsync = async (app) => {
       signedTransaction: string;
     };
   }>(
-    "/api/v1/iap/verify",
+    "/v1/iap/verify",
     { preHandler: [app.authenticate] },
     async (request, reply) => {
       const userId = request.userId!;
@@ -63,7 +63,7 @@ const iapRoutes: FastifyPluginAsync = async (app) => {
       signedTransactions: string[];
     };
   }>(
-    "/api/v1/iap/restore",
+    "/v1/iap/restore",
     { preHandler: [app.authenticate] },
     async (request, reply) => {
       const userId = request.userId!;
@@ -99,7 +99,7 @@ const iapRoutes: FastifyPluginAsync = async (app) => {
    * Get current subscription status
    */
   app.get(
-    "/api/v1/iap/subscription",
+    "/v1/iap/subscription",
     { preHandler: [app.authenticate] },
     async (request: FastifyRequest) => {
       const userId = request.userId!;
@@ -147,7 +147,7 @@ const iapRoutes: FastifyPluginAsync = async (app) => {
     Body: {
       signedPayload: string;
     };
-  }>("/api/v1/iap/webhook", async (request, reply) => {
+  }>("/v1/iap/webhook", async (request, reply) => {
     const { signedPayload } = request.body;
 
     if (!signedPayload) {
@@ -166,7 +166,7 @@ const iapRoutes: FastifyPluginAsync = async (app) => {
   /**
    * Get available products (for iOS app to display)
    */
-  app.get("/api/v1/iap/products", async () => {
+  app.get("/v1/iap/products", async () => {
     return {
       products: [
         {

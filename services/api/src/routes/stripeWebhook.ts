@@ -28,7 +28,7 @@ const stripeWebhookRoutes: FastifyPluginAsync = async (app) => {
     );
   }
 
-  app.post<{ Body: Buffer }>("/api/v1/stripe/webhook", async (request, reply) => {
+  app.post<{ Body: Buffer }>("/v1/stripe/webhook", async (request, reply) => {
     if (!webhookSecret) {
       request.log.error("STRIPE_WEBHOOK_SECRET not configured");
       return reply.code(500).send({ error: "Webhook not configured" });
