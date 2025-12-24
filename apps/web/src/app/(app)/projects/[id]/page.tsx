@@ -271,9 +271,13 @@ export default function ProjectDetailPage() {
                     <div className="mt-1 flex items-center gap-4 text-sm text-muted-foreground">
                       <span>{formatDuration(track.duration)}</span>
                       <span>{formatBytes(track.fileSize)}</span>
-                      <span>
-                        {track.sampleRate / 1000}kHz / {track.bitDepth}bit
-                      </span>
+                      {track.sampleRate && track.bitDepth ? (
+                        <span>
+                          {track.sampleRate / 1000}kHz / {track.bitDepth}bit
+                        </span>
+                      ) : (
+                        <span className="italic">Awaiting analysis</span>
+                      )}
                     </div>
                   </div>
 

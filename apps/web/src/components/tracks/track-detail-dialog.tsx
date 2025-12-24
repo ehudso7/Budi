@@ -79,11 +79,11 @@ export function TrackDetailDialog({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground">File Name</p>
-                <p className="font-medium">{track.originalFileName}</p>
+                <p className="font-medium">{track.originalFileName || track.name}</p>
               </div>
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground">Format</p>
-                <p className="font-medium uppercase">{track.format}</p>
+                <p className="font-medium uppercase">{track.format || "—"}</p>
               </div>
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground">Duration</p>
@@ -95,16 +95,16 @@ export function TrackDetailDialog({
               </div>
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground">Sample Rate</p>
-                <p className="font-medium">{track.sampleRate / 1000} kHz</p>
+                <p className="font-medium">{track.sampleRate ? `${track.sampleRate / 1000} kHz` : "—"}</p>
               </div>
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground">Bit Depth</p>
-                <p className="font-medium">{track.bitDepth} bit</p>
+                <p className="font-medium">{track.bitDepth ? `${track.bitDepth} bit` : "—"}</p>
               </div>
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground">Channels</p>
                 <p className="font-medium">
-                  {track.channels === 1 ? "Mono" : "Stereo"}
+                  {track.channels ? (track.channels === 1 ? "Mono" : "Stereo") : "—"}
                 </p>
               </div>
               <div className="space-y-1">
@@ -135,7 +135,7 @@ export function TrackDetailDialog({
                 <Button
                   onClick={() => analyzeMutation.mutate()}
                   disabled={
-                    analyzeMutation.isPending || track.status !== "ready"
+                    analyzeMutation.isPending || track.status === "analyzing" || track.status === "processing"
                   }
                 >
                   {analyzeMutation.isPending && (
@@ -177,54 +177,54 @@ export function TrackDetailDialog({
                   </div>
                 </div>
 
-                <Separator />
+                {analysis.spectralAnalysis && (
+                  <>
+                    <Separator />
 
-                {/* Spectral Analysis */}
-                <div>
-                  <h4 className="mb-3 font-medium">Spectral Balance</h4>
-                  <div className="space-y-3">
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-sm">
-                        <span>Low End (20-200Hz)</span>
-                        <span>
-                          {(analysis.spectralAnalysis.lowEnd * 100).toFixed(0)}%
-                        </span>
+                    {/* Spectral Analysis */}
+                    <div>
+                      <h4 className="mb-3 font-medium">Spectral Balance</h4>
+                      <div className="space-y-3">
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-sm">
+                            <span>Low End (20-200Hz)</span>
+                            <span>
+                              {(analysis.spectralAnalysis.lowEnd * 100).toFixed(0)}%
+                            </span>
+                          </div>
+                          <Progress
+                            value={analysis.spectralAnalysis.lowEnd * 100}
+                            className="h-2"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-sm">
+                            <span>Mid Range (200Hz-4kHz)</span>
+                            <span>
+                              {(analysis.spectralAnalysis.midRange * 100).toFixed(0)}%
+                            </span>
+                          </div>
+                          <Progress
+                            value={analysis.spectralAnalysis.midRange * 100}
+                            className="h-2"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-sm">
+                            <span>High End (4kHz-20kHz)</span>
+                            <span>
+                              {(analysis.spectralAnalysis.highEnd * 100).toFixed(0)}%
+                            </span>
+                          </div>
+                          <Progress
+                            value={analysis.spectralAnalysis.highEnd * 100}
+                            className="h-2"
+                          />
+                        </div>
                       </div>
-                      <Progress
-                        value={analysis.spectralAnalysis.lowEnd * 100}
-                        className="h-2"
-                      />
                     </div>
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-sm">
-                        <span>Mid Range (200Hz-4kHz)</span>
-                        <span>
-                          {(analysis.spectralAnalysis.midRange * 100).toFixed(
-                            0
-                          )}
-                          %
-                        </span>
-                      </div>
-                      <Progress
-                        value={analysis.spectralAnalysis.midRange * 100}
-                        className="h-2"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-sm">
-                        <span>High End (4kHz-20kHz)</span>
-                        <span>
-                          {(analysis.spectralAnalysis.highEnd * 100).toFixed(0)}
-                          %
-                        </span>
-                      </div>
-                      <Progress
-                        value={analysis.spectralAnalysis.highEnd * 100}
-                        className="h-2"
-                      />
-                    </div>
-                  </div>
-                </div>
+                  </>
+                )}
               </div>
             )}
           </TabsContent>
@@ -239,7 +239,7 @@ export function TrackDetailDialog({
                 <Button
                   onClick={() => analyzeMutation.mutate()}
                   disabled={
-                    analyzeMutation.isPending || track.status !== "ready"
+                    analyzeMutation.isPending || track.status === "analyzing" || track.status === "processing"
                   }
                 >
                   {analyzeMutation.isPending && (
