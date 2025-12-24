@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { FolderKanban, Music, Search, ArrowRight } from "lucide-react";
+import { FolderKanban, Music, Search, ArrowRight, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -16,9 +16,11 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { projectsApi } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
+import { CreateProjectDialog } from "@/components/projects/create-project-dialog";
 
 export default function TracksPage() {
   const [search, setSearch] = useState("");
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   const { data: projectsData, isLoading } = useQuery({
     queryKey: ["projects"],
@@ -33,11 +35,17 @@ export default function TracksPage() {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div>
-        <h2 className="text-3xl font-bold tracking-tight">Tracks</h2>
-        <p className="text-muted-foreground">
-          Browse and manage all your audio tracks
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Tracks</h2>
+          <p className="text-muted-foreground">
+            Browse and manage all your audio tracks
+          </p>
+        </div>
+        <Button onClick={() => setCreateDialogOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          New Project
+        </Button>
       </div>
 
       {/* Search */}
@@ -105,12 +113,19 @@ export default function TracksPage() {
                 ? "No projects match your search."
                 : "Create a project to start uploading tracks."}
             </p>
-            <Button asChild>
-              <Link href="/projects/new">Create Project</Link>
+            <Button onClick={() => setCreateDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Create Project
             </Button>
           </CardContent>
         </Card>
       )}
+
+      {/* Create Project Dialog */}
+      <CreateProjectDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+      />
     </div>
   );
 }
