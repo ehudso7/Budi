@@ -5,7 +5,8 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatBytes(bytes: number, decimals = 2) {
+export function formatBytes(bytes: number | null | undefined, decimals = 2) {
+  if (bytes === null || bytes === undefined) return "—";
   if (bytes < 0) return "0 Bytes";
   if (bytes === 0) return "0 Bytes";
   const k = 1024;
@@ -15,7 +16,8 @@ export function formatBytes(bytes: number, decimals = 2) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
 }
 
-export function formatDuration(seconds: number) {
+export function formatDuration(seconds: number | null | undefined) {
+  if (seconds === null || seconds === undefined) return "—";
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
   return `${mins}:${secs.toString().padStart(2, "0")}`;

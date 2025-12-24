@@ -407,7 +407,15 @@ const v1Routes: FastifyPluginAsync = async (app) => {
           channels: t.analysisReport?.channels ?? null,
           format: null, // Format detection not implemented
           waveformUrl: null,
-          status: t.status.toLowerCase() === "analyzed" || t.status.toLowerCase() === "mastered" ? "ready" : t.status.toLowerCase(),
+          status: (() => {
+            const s = t.status.toLowerCase();
+            if (s === "analyzed" || s === "mastered") return "ready";
+            if (s === "uploaded") return "pending";
+            if (s === "analyzing") return "analyzing";
+            if (s === "fixing" || s === "mastering") return "processing";
+            if (s === "failed") return "error";
+            return "pending";
+          })(),
           analysis: t.analysisReport ? {
             lufs: t.analysisReport.integratedLufs,
             truePeak: t.analysisReport.truePeak,
