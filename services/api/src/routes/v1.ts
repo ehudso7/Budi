@@ -511,6 +511,34 @@ const v1Routes: FastifyPluginAsync = async (app) => {
     }
   );
 
+  /** Delete a track */
+  app.delete<{ Params: { trackId: string } }>(
+    "/v1/tracks/:trackId",
+    { preHandler: [app.authenticate] },
+    async (request, reply) => {
+      const { trackId } = request.params;
+
+      // Check if track exists and belongs to user
+      const track = await prisma.track.findFirst({
+        where: {
+          id: trackId,
+          project: { userId: request.userId },
+        },
+      });
+
+      if (!track) {
+        return reply.code(404).send({ error: "Track not found" });
+      }
+
+      // Delete track (cascades to analysis reports, masters, jobs, etc.)
+      await prisma.track.delete({
+        where: { id: trackId },
+      });
+
+      reply.code(204).send();
+    }
+  );
+
   /** Get track details */
   app.get<{ Params: { trackId: string } }>(
     "/v1/tracks/:trackId",

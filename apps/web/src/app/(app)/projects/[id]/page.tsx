@@ -72,22 +72,22 @@ export default function ProjectDetailPage() {
 
   const uploadMutation = useMutation({
     mutationFn: async (file: File) => {
-      const formData = new FormData();
-      formData.append("file", file);
-      return tracksApi.upload(projectId, formData);
+      // Uses pre-signed S3 URL upload flow
+      return tracksApi.upload(projectId, file);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tracks", projectId] });
       queryClient.invalidateQueries({ queryKey: ["project", projectId] });
       toast.success("Track uploaded successfully");
     },
-    onError: () => {
+    onError: (error) => {
+      console.error("Upload failed:", error);
       toast.error("Failed to upload track");
     },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (trackId: string) => tracksApi.delete(projectId, trackId),
+    mutationFn: (trackId: string) => tracksApi.delete(trackId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tracks", projectId] });
       queryClient.invalidateQueries({ queryKey: ["project", projectId] });

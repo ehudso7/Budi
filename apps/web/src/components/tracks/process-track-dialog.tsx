@@ -76,7 +76,7 @@ export function ProcessTrackDialog({
   });
 
   const fixMutation = useMutation({
-    mutationFn: () => tracksApi.fix(projectId, track!.id, fixOptions),
+    mutationFn: () => tracksApi.fix(track!.id, fixOptions),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tracks", projectId] });
       toast.success("Processing started. You'll be notified when it's done.");
@@ -88,7 +88,7 @@ export function ProcessTrackDialog({
   });
 
   const masterMutation = useMutation({
-    mutationFn: () => tracksApi.master(projectId, track!.id, masterOptions),
+    mutationFn: () => tracksApi.master(track!.id, masterOptions),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tracks", projectId] });
       toast.success("Mastering started. You'll be notified when it's done.");

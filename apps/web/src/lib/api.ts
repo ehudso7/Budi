@@ -173,29 +173,91 @@ export const projectsApi = {
 export const tracksApi = {
   list: (projectId: string) =>
     api.get<{ tracks: Track[] }>(`/api/v1/projects/${projectId}/tracks`),
-  get: (projectId: string, trackId: string) =>
-    api.get<{ track: Track }>(`/api/v1/projects/${projectId}/tracks/${trackId}`),
-  upload: (projectId: string, formData: FormData) =>
-    api.upload<{ track: Track }>(`/api/v1/projects/${projectId}/tracks`, formData),
-  delete: (projectId: string, trackId: string) =>
-    api.delete(`/api/v1/projects/${projectId}/tracks/${trackId}`),
-  analyze: (projectId: string, trackId: string) =>
-    api.post<{ analysis: TrackAnalysis }>(
-      `/api/v1/projects/${projectId}/tracks/${trackId}/analyze`
+  get: (trackId: string) =>
+    api.get<{ track: Track }>(`/api/v1/tracks/${trackId}`),
+  // Get pre-signed URL for S3 upload
+  getUploadUrl: (projectId: string, name: string, contentType: string = "audio/wav") =>
+    api.post<{ trackId: string; uploadUrl: string; key: string; expiresIn: number }>(
+      `/api/v1/projects/${projectId}/tracks/upload-url`,
+      { name, contentType }
     ),
-  fix: (projectId: string, trackId: string, options: FixOptions) =>
-    api.post<{ job: ProcessingJob }>(
-      `/api/v1/projects/${projectId}/tracks/${trackId}/fix`,
-      options
+  // Upload file directly to S3 using pre-signed URL
+  uploadToS3: async (uploadUrl: string, file: File): Promise<void> => {
+    const response = await fetch(uploadUrl, {
+      method: "PUT",
+      body: file,
+      headers: {
+        "Content-Type": file.type || "audio/wav",
+      },
+    });
+    if (!response.ok) {
+      throw new Error(`S3 upload failed: ${response.status}`);
+    }
+  },
+  // Complete upload flow: get URL, upload to S3, return track info
+  upload: async (projectId: string, file: File): Promise<{ trackId: string }> => {
+    // Step 1: Get pre-signed upload URL
+    const { trackId, uploadUrl } = await tracksApi.getUploadUrl(
+      projectId,
+      file.name,
+      file.type || "audio/wav"
+    );
+    // Step 2: Upload file directly to S3
+    await tracksApi.uploadToS3(uploadUrl, file);
+    // Return the track ID (track record already created by getUploadUrl)
+    return { trackId };
+  },
+  delete: (trackId: string) =>
+    api.delete(`/api/v1/tracks/${trackId}`),
+  analyze: (trackId: string) =>
+    api.post<{ jobId: string; trackId: string; status: string }>(
+      `/api/v1/tracks/${trackId}/analyze`
     ),
-  master: (projectId: string, trackId: string, options: MasterOptions) =>
-    api.post<{ job: ProcessingJob }>(
-      `/api/v1/projects/${projectId}/tracks/${trackId}/master`,
-      options
-    ),
-  export: (projectId: string, trackId: string, options: ExportOptions) =>
-    api.post<{ downloadUrl: string }>(
-      `/api/v1/projects/${projectId}/tracks/${trackId}/export`,
+  fix: (trackId: string, options: FixOptions) => {
+    // Map frontend options to backend module names
+    const moduleMap: Record<string, string> = {
+      removeClipping: "clip_repair",
+      removeNoise: "noise_reduction",
+      fixPhase: "dc_offset", // Phase issues often related to DC offset
+      normalizeLevel: "normalize",
+    };
+    const modules = Object.entries(options)
+      .filter(([, enabled]) => enabled)
+      .map(([key]) => moduleMap[key])
+      .filter(Boolean);
+    return api.post<{ jobId: string; trackId: string; status: string }>(
+      `/api/v1/tracks/${trackId}/fix`,
+      { modules }
+    );
+  },
+  master: (trackId: string, options: MasterOptions) => {
+    // Map frontend options to backend format
+    // Backend expects: profile (balanced/warm/punchy/custom), loudnessTarget (low/medium/high)
+    const loudnessTarget = options.targetLufs && options.targetLufs >= -10 ? "high"
+      : options.targetLufs && options.targetLufs <= -18 ? "low"
+      : "medium";
+    // Map genre to profile
+    const genreToProfile: Record<string, string> = {
+      pop: "balanced",
+      rock: "punchy",
+      electronic: "punchy",
+      "hip-hop": "punchy",
+      jazz: "warm",
+      classical: "balanced",
+      rnb: "warm",
+      country: "balanced",
+      metal: "punchy",
+      acoustic: "warm",
+    };
+    const profile = genreToProfile[options.genre || "pop"] || "balanced";
+    return api.post<{ jobId: string; trackId: string; status: string }>(
+      `/api/v1/tracks/${trackId}/master`,
+      { profile, loudnessTarget }
+    );
+  },
+  export: (trackId: string, options: ExportOptions) =>
+    api.post<{ jobId: string; trackId: string; status: string }>(
+      `/api/v1/tracks/${trackId}/exports`,
       options
     ),
 };
