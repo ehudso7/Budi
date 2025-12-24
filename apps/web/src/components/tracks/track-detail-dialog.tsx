@@ -34,7 +34,7 @@ export function TrackDetailDialog({
   const queryClient = useQueryClient();
 
   const analyzeMutation = useMutation({
-    mutationFn: () => tracksApi.analyze(projectId, track!.id),
+    mutationFn: () => tracksApi.analyze(track!.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tracks", projectId] });
       toast.success("Analysis started");
