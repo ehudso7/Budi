@@ -17,7 +17,7 @@ const notificationRoutes: FastifyPluginAsync = async (app) => {
       platform?: "IOS" | "ANDROID";
     };
   }>(
-    "/api/v1/notifications/register",
+    "/v1/notifications/register",
     { preHandler: [app.authenticate] },
     async (request, reply) => {
       const userId = request.userId!;
@@ -49,7 +49,7 @@ const notificationRoutes: FastifyPluginAsync = async (app) => {
   app.delete<{
     Body: { token: string };
   }>(
-    "/api/v1/notifications/unregister",
+    "/v1/notifications/unregister",
     { preHandler: [app.authenticate] },
     async (request, reply) => {
       const { token } = request.body;
@@ -78,7 +78,7 @@ const notificationRoutes: FastifyPluginAsync = async (app) => {
    * Get registered devices for current user
    */
   app.get(
-    "/api/v1/notifications/devices",
+    "/v1/notifications/devices",
     { preHandler: [app.authenticate] },
     async (request: FastifyRequest) => {
       const userId = request.userId!;
@@ -99,7 +99,7 @@ const notificationRoutes: FastifyPluginAsync = async (app) => {
    * Send test notification (for debugging)
    */
   app.post(
-    "/api/v1/notifications/test",
+    "/v1/notifications/test",
     { preHandler: [app.authenticate] },
     async (request: FastifyRequest, reply) => {
       const userId = request.userId!;
@@ -138,7 +138,7 @@ const notificationRoutes: FastifyPluginAsync = async (app) => {
    * Get notification preferences (placeholder for future settings)
    */
   app.get(
-    "/api/v1/notifications/preferences",
+    "/v1/notifications/preferences",
     { preHandler: [app.authenticate] },
     async () => {
       // Default preferences - can be expanded to user-specific settings

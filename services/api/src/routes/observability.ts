@@ -74,7 +74,7 @@ const observabilityRoutes: FastifyPluginAsync = async (app) => {
    * Recent errors endpoint (protected, for debugging)
    */
   app.get(
-    "/api/v1/admin/errors",
+    "/v1/admin/errors",
     { preHandler: [app.authenticate] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       // Check if user is admin (for now, just check if they have enterprise plan)
@@ -93,7 +93,7 @@ const observabilityRoutes: FastifyPluginAsync = async (app) => {
   /**
    * Service info endpoint
    */
-  app.get("/api/v1/info", async () => {
+  app.get("/v1/info", async () => {
     return {
       service: "budi-api",
       version: "1.0.0",
@@ -110,7 +110,7 @@ const observabilityRoutes: FastifyPluginAsync = async (app) => {
    * Queue status endpoint
    */
   app.get(
-    "/api/v1/admin/queues",
+    "/v1/admin/queues",
     { preHandler: [app.authenticate] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       if (request.userPlan !== "ENTERPRISE") {
@@ -139,7 +139,7 @@ const observabilityRoutes: FastifyPluginAsync = async (app) => {
    * Database stats endpoint
    */
   app.get(
-    "/api/v1/admin/stats",
+    "/v1/admin/stats",
     { preHandler: [app.authenticate] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       if (request.userPlan !== "ENTERPRISE") {
@@ -190,7 +190,7 @@ const observabilityRoutes: FastifyPluginAsync = async (app) => {
    * Circuit breaker status
    */
   app.get(
-    "/api/v1/admin/circuits",
+    "/v1/admin/circuits",
     { preHandler: [app.authenticate] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       if (request.userPlan !== "ENTERPRISE") {
@@ -215,7 +215,7 @@ const observabilityRoutes: FastifyPluginAsync = async (app) => {
   app.post<{
     Params: { name: string };
   }>(
-    "/api/v1/admin/circuits/:name/reset",
+    "/v1/admin/circuits/:name/reset",
     { preHandler: [app.authenticate] },
     async (request, reply) => {
       if (request.userPlan !== "ENTERPRISE") {
@@ -241,7 +241,7 @@ const observabilityRoutes: FastifyPluginAsync = async (app) => {
    * Dead letter queue status
    */
   app.get(
-    "/api/v1/admin/dlq",
+    "/v1/admin/dlq",
     { preHandler: [app.authenticate] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       if (request.userPlan !== "ENTERPRISE") {
@@ -271,7 +271,7 @@ const observabilityRoutes: FastifyPluginAsync = async (app) => {
       offset?: string;
     };
   }>(
-    "/api/v1/admin/dlq/jobs",
+    "/v1/admin/dlq/jobs",
     { preHandler: [app.authenticate] },
     async (request, reply) => {
       if (request.userPlan !== "ENTERPRISE") {
@@ -302,7 +302,7 @@ const observabilityRoutes: FastifyPluginAsync = async (app) => {
   app.post<{
     Params: { id: string };
   }>(
-    "/api/v1/admin/dlq/jobs/:id/retry",
+    "/v1/admin/dlq/jobs/:id/retry",
     { preHandler: [app.authenticate] },
     async (request, reply) => {
       if (request.userPlan !== "ENTERPRISE") {
