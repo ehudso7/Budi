@@ -4,8 +4,10 @@
   "type": "module",
   "exports": {
     ".": {
+      "types": "./dist/app.d.ts",
       "import": "./dist/app.js",
-      "types": "./dist/app.d.ts"
+      "require": "./dist/app.js",
+      "default": "./dist/app.js"
     }
   },
   "main": "./dist/app.js",
