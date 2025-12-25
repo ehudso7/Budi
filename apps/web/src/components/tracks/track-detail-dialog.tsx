@@ -39,8 +39,11 @@ export function TrackDetailDialog({
       queryClient.invalidateQueries({ queryKey: ["tracks", projectId] });
       toast.success("Analysis started");
     },
-    onError: () => {
-      toast.error("Failed to start analysis");
+    onError: (error: unknown) => {
+      console.error("Analysis failed:", error);
+      const apiError = error as { message?: string; error?: string };
+      const message = apiError.message || apiError.error || "Failed to start analysis";
+      toast.error(message);
     },
   });
 

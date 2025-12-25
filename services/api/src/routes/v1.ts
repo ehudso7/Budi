@@ -573,15 +573,28 @@ const v1Routes: FastifyPluginAsync = async (app) => {
               await deleteObject(bucket, key);
             }
           } catch (s3Error) {
-            // Log but don't fail the request
-            app.log.warn({ s3Error, trackId }, "Failed to delete S3 object");
+            // Log but don't fail the request - track was deleted from DB
+            app.log.warn({ s3Error, trackId }, "Failed to delete S3 object (track already deleted from DB)");
           }
         }
 
         reply.code(204).send();
       } catch (error) {
-        app.log.error({ error, trackId }, "Failed to delete track");
-        return reply.code(500).send({ error: "Failed to delete track" });
+        const err = error as Error;
+        app.log.error({ error: err.message, stack: err.stack, trackId }, "Failed to delete track");
+
+        // Check for specific error types
+        if (err.message?.includes("constraint") || err.message?.includes("foreign key")) {
+          return reply.code(409).send({
+            error: "Cannot delete track",
+            message: "This track has associated data that prevents deletion. Please try again later.",
+          });
+        }
+
+        return reply.code(500).send({
+          error: "Failed to delete track",
+          message: "An error occurred while deleting the track. Please try again.",
+        });
       }
     }
   );
@@ -610,16 +623,48 @@ const v1Routes: FastifyPluginAsync = async (app) => {
         return reply.code(404).send({ error: "Track not found" });
       }
 
+      // Helper to detect format from filename
+      const detectFormat = (name: string): string | null => {
+        const ext = name.split('.').pop()?.toLowerCase();
+        if (ext && ['wav', 'mp3', 'flac', 'aac', 'ogg', 'm4a'].includes(ext)) {
+          return ext;
+        }
+        return null;
+      };
+
+      // Map status to frontend values
+      const mapStatus = (status: string): string => {
+        const s = status.toLowerCase();
+        if (s === "analyzed" || s === "mastered" || s === "fixed") return "ready";
+        if (s === "uploaded") return "pending";
+        if (s === "analyzing") return "analyzing";
+        if (s === "fixing" || s === "mastering") return "processing";
+        if (s === "failed") return "error";
+        return "pending";
+      };
+
       reply.send({
         id: track.id,
         name: track.name,
-        status: track.status.toLowerCase(),
+        originalFileName: track.name,
+        status: mapStatus(track.status),
         originalUrl: track.originalUrl,
         fixedUrl: track.fixedUrl,
+        // Include format and metadata that the frontend expects
+        format: detectFormat(track.name),
+        fileSize: null, // Not tracked yet
+        duration: track.analysisReport?.durationSecs ?? null,
+        sampleRate: track.analysisReport?.sampleRate ?? null,
+        bitDepth: track.analysisReport?.bitDepth ?? null,
+        channels: track.analysisReport?.channels ?? null,
+        waveformUrl: null,
+        createdAt: track.createdAt.toISOString(),
         analysis: track.analysisReport
           ? {
+              lufs: track.analysisReport.integratedLufs,
               integratedLufs: track.analysisReport.integratedLufs,
               loudnessRange: track.analysisReport.loudnessRange,
+              dynamicRange: track.analysisReport.loudnessRange,
               truePeak: track.analysisReport.truePeak,
               samplePeak: track.analysisReport.samplePeak,
               hasClipping: track.analysisReport.hasClipping,
@@ -627,6 +672,11 @@ const v1Routes: FastifyPluginAsync = async (app) => {
               durationSecs: track.analysisReport.durationSecs,
               sampleRate: track.analysisReport.sampleRate,
               channels: track.analysisReport.channels,
+              issues: [
+                ...(track.analysisReport.hasClipping ? [{ type: "clipping", severity: "high" as const, description: "Audio clipping detected" }] : []),
+                ...(track.analysisReport.hasDcOffset ? [{ type: "dc_offset", severity: "medium" as const, description: "DC offset detected" }] : []),
+              ],
+              spectralAnalysis: null,
             }
           : null,
         masters: track.masters.map((m: (typeof track.masters)[number]) => ({
@@ -669,6 +719,14 @@ const v1Routes: FastifyPluginAsync = async (app) => {
     async (request, reply) => {
       const { trackId } = request.params;
 
+      // Check if S3/MinIO is configured
+      if (!isS3Configured()) {
+        return reply.code(503).send({
+          error: "Storage not configured",
+          message: "File storage (S3/MinIO) is not configured on the server.",
+        });
+      }
+
       const track = await prisma.track.findFirst({
         where: {
           id: trackId,
@@ -681,19 +739,42 @@ const v1Routes: FastifyPluginAsync = async (app) => {
       }
 
       if (!track.originalUrl) {
-        return reply.code(404).send({ error: "Track file not found" });
+        return reply.code(404).send({
+          error: "Track file not uploaded",
+          message: "This track has no uploaded file. Please re-upload the audio file.",
+        });
       }
 
       try {
         // Parse the internal URL to extract bucket and key
-        const url = new URL(track.originalUrl);
-        const pathParts = url.pathname.slice(1).split('/');
-        if (pathParts.length < 2) {
-          return reply.code(500).send({ error: "Invalid file URL format" });
+        let bucket: string;
+        let key: string;
+
+        try {
+          const url = new URL(track.originalUrl);
+          const pathParts = url.pathname.slice(1).split('/');
+          if (pathParts.length < 2) {
+            throw new Error("URL path too short");
+          }
+          bucket = pathParts[0];
+          key = pathParts.slice(1).join('/');
+        } catch (urlError) {
+          app.log.error({ urlError, trackId, originalUrl: track.originalUrl }, "Invalid originalUrl format");
+          return reply.code(500).send({
+            error: "Invalid file reference",
+            message: "The file reference for this track is invalid. Please re-upload the file.",
+          });
         }
 
-        const bucket = pathParts[0];
-        const key = pathParts.slice(1).join('/');
+        // Check if file actually exists in S3
+        const fileExists = await objectExists(bucket, key);
+        if (!fileExists) {
+          app.log.warn({ trackId, bucket, key }, "File not found in S3");
+          return reply.code(404).send({
+            error: "File not found",
+            message: "The audio file was not found in storage. It may have failed to upload. Please re-upload the file.",
+          });
+        }
 
         // Generate a presigned download URL
         const streamUrl = await getDownloadUrl(bucket, key, 3600);
@@ -706,7 +787,10 @@ const v1Routes: FastifyPluginAsync = async (app) => {
         });
       } catch (error) {
         app.log.error({ error, trackId }, "Failed to generate stream URL");
-        return reply.code(500).send({ error: "Failed to generate stream URL" });
+        return reply.code(500).send({
+          error: "Failed to generate stream URL",
+          message: "An error occurred while preparing the audio file for playback. Please try again.",
+        });
       }
     }
   );
@@ -758,9 +842,13 @@ const v1Routes: FastifyPluginAsync = async (app) => {
         }
       }
 
-      // Optionally verify file exists in S3
+      // Verify file exists in S3 - this is critical for the upload to be considered successful
       let verified = false;
-      if (track.originalUrl) {
+      let verificationError: string | null = null;
+
+      if (!track.originalUrl) {
+        verificationError = "Track has no file reference";
+      } else {
         try {
           const url = new URL(track.originalUrl);
           const pathParts = url.pathname.slice(1).split('/');
@@ -768,15 +856,31 @@ const v1Routes: FastifyPluginAsync = async (app) => {
             const bucket = pathParts[0];
             const key = pathParts.slice(1).join('/');
             verified = await objectExists(bucket, key);
+            if (!verified) {
+              verificationError = "File not found in storage after upload";
+            }
+          } else {
+            verificationError = "Invalid file URL format";
           }
-        } catch {
-          // Ignore verification errors
+        } catch (error) {
+          app.log.error({ error, trackId }, "Error verifying file upload");
+          verificationError = "Failed to verify file upload";
         }
+      }
+
+      // If file doesn't exist, return error so frontend knows upload failed
+      if (!verified) {
+        return reply.code(400).send({
+          error: "Upload verification failed",
+          message: verificationError || "The file could not be verified in storage. Please try uploading again.",
+          verified: false,
+          trackId,
+        });
       }
 
       reply.send({
         trackId,
-        verified,
+        verified: true,
         format,
         fileSize: fileSize || null,
         status: track.status.toLowerCase(),

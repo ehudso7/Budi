@@ -108,8 +108,16 @@ export default function ProjectDetailPage() {
       };
 
       // Handle errors
-      audio.onerror = () => {
-        toast.error("Failed to play audio");
+      audio.onerror = (e) => {
+        console.error("Audio playback error:", e);
+        // Check if it's a CORS error (typically shows as network error)
+        if (audio.error?.code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED) {
+          toast.error("Audio format not supported or CORS not configured");
+        } else if (audio.error?.code === MediaError.MEDIA_ERR_NETWORK) {
+          toast.error("Network error loading audio. Check storage CORS settings.");
+        } else {
+          toast.error("Failed to play audio");
+        }
         setPlayingTrack(null);
         setLoadingTrack(null);
       };
@@ -118,8 +126,9 @@ export default function ProjectDetailPage() {
       audio.oncanplay = () => {
         setLoadingTrack(null);
         setPlayingTrack(track.id);
-        audio.play().catch(() => {
-          toast.error("Failed to play audio");
+        audio.play().catch((playError) => {
+          console.error("Audio play error:", playError);
+          toast.error("Failed to play audio - browser may have blocked autoplay");
           setPlayingTrack(null);
         });
       };
@@ -128,7 +137,10 @@ export default function ProjectDetailPage() {
       audio.load();
     } catch (error) {
       console.error("Failed to get stream URL:", error);
-      toast.error("Failed to load audio");
+      // Extract error message from API response
+      const apiError = error as { message?: string; error?: string };
+      const message = apiError.message || apiError.error || "Failed to load audio";
+      toast.error(message);
       setLoadingTrack(null);
     }
   };
@@ -170,8 +182,11 @@ export default function ProjectDetailPage() {
       toast.success("Track deleted successfully");
       setDeleteTrack(null);
     },
-    onError: () => {
-      toast.error("Failed to delete track");
+    onError: (error: unknown) => {
+      console.error("Delete failed:", error);
+      const apiError = error as { message?: string; error?: string };
+      const message = apiError.message || apiError.error || "Failed to delete track";
+      toast.error(message);
     },
   });
 
