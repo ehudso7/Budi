@@ -16,6 +16,7 @@ import {
   Download,
   AlertCircle,
   Loader2,
+  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -190,6 +191,25 @@ export default function ProjectDetailPage() {
     },
   });
 
+  const cleanupMutation = useMutation({
+    mutationFn: () => projectsApi.cleanupOrphans(projectId),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["tracks", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["project", projectId] });
+      if (data.deleted > 0) {
+        toast.success(`Cleaned up ${data.deleted} orphaned track(s)`);
+      } else {
+        toast.info("No orphaned tracks found");
+      }
+    },
+    onError: (error: unknown) => {
+      console.error("Cleanup failed:", error);
+      const apiError = error as { message?: string; error?: string };
+      const message = apiError.message || apiError.error || "Failed to clean up orphans";
+      toast.error(message);
+    },
+  });
+
   const onDrop = useCallback(
     (acceptedFiles: File[]) => {
       acceptedFiles.forEach((file) => {
@@ -307,11 +327,28 @@ export default function ProjectDetailPage() {
 
       {/* Tracks List */}
       <Card>
-        <CardHeader>
-          <CardTitle>Tracks ({tracks.length})</CardTitle>
-          <CardDescription>
-            Manage and process your audio tracks
-          </CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Tracks ({tracks.length})</CardTitle>
+            <CardDescription>
+              Manage and process your audio tracks
+            </CardDescription>
+          </div>
+          {tracks.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => cleanupMutation.mutate()}
+              disabled={cleanupMutation.isPending}
+            >
+              {cleanupMutation.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="mr-2 h-4 w-4" />
+              )}
+              Clean Up
+            </Button>
+          )}
         </CardHeader>
         <CardContent>
           {tracksLoading ? (

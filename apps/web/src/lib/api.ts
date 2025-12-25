@@ -73,18 +73,48 @@ class ApiClient {
     });
 
     if (!response.ok) {
-      const error: ApiError = await response.json().catch(() => ({
-        message: "An unexpected error occurred",
-        statusCode: response.status,
-      }));
+      // Try to parse error response, handling empty responses
+      let error: ApiError;
+      try {
+        const text = await response.text();
+        if (text) {
+          const parsed = JSON.parse(text);
+          error = {
+            message: parsed.message || parsed.error || "An unexpected error occurred",
+            code: parsed.code,
+            statusCode: response.status,
+          };
+        } else {
+          error = {
+            message: `Request failed with status ${response.status}`,
+            statusCode: response.status,
+          };
+        }
+      } catch {
+        error = {
+          message: "An unexpected error occurred",
+          statusCode: response.status,
+        };
+      }
       throw error;
     }
 
+    // Handle empty responses (204 No Content or empty body)
     if (response.status === 204) {
       return {} as T;
     }
 
-    return response.json();
+    // Safely parse JSON response, handling empty bodies
+    try {
+      const text = await response.text();
+      if (!text || text.trim() === "") {
+        return {} as T;
+      }
+      return JSON.parse(text) as T;
+    } catch (parseError) {
+      console.error("Failed to parse JSON response:", parseError);
+      return {} as T;
+    }
   }
 
   async get<T>(endpoint: string): Promise<T> {
@@ -132,14 +162,43 @@ class ApiClient {
     });
 
     if (!response.ok) {
-      const error: ApiError = await response.json().catch(() => ({
-        message: "Upload failed",
-        statusCode: response.status,
-      }));
+      // Try to parse error response, handling empty responses
+      let error: ApiError;
+      try {
+        const text = await response.text();
+        if (text) {
+          const parsed = JSON.parse(text);
+          error = {
+            message: parsed.message || parsed.error || "Upload failed",
+            code: parsed.code,
+            statusCode: response.status,
+          };
+        } else {
+          error = {
+            message: `Upload failed with status ${response.status}`,
+            statusCode: response.status,
+          };
+        }
+      } catch {
+        error = {
+          message: "Upload failed",
+          statusCode: response.status,
+        };
+      }
       throw error;
     }
 
-    return response.json();
+    // Safely parse JSON response
+    try {
+      const text = await response.text();
+      if (!text || text.trim() === "") {
+        return {} as T;
+      }
+      return JSON.parse(text) as T;
+    } catch (parseError) {
+      console.error("Failed to parse upload response:", parseError);
+      return {} as T;
+    }
   }
 }
 
@@ -167,6 +226,11 @@ export const projectsApi = {
   update: (id: string, data: { name?: string; description?: string }) =>
     api.patch<{ project: Project }>(`/api/v1/projects/${id}`, data),
   delete: (id: string) => api.delete(`/api/v1/projects/${id}`),
+  // Clean up orphaned tracks (tracks without files in storage)
+  cleanupOrphans: (id: string) =>
+    api.post<{ deleted: number; deletedIds: string[]; verified: number; message: string }>(
+      `/api/v1/projects/${id}/cleanup-orphans`
+    ),
 };
 
 // Tracks API

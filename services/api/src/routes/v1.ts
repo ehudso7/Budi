@@ -599,6 +599,81 @@ const v1Routes: FastifyPluginAsync = async (app) => {
     }
   );
 
+  /** Clean up orphaned tracks in a project (tracks without files in storage) */
+  app.post<{ Params: { projectId: string } }>(
+    "/v1/projects/:projectId/cleanup-orphans",
+    { preHandler: [app.authenticate] },
+    async (request, reply) => {
+      const { projectId } = request.params;
+
+      // Check if project exists and belongs to user
+      const project = await prisma.project.findFirst({
+        where: { id: projectId, userId: request.userId },
+      });
+
+      if (!project) {
+        return reply.code(404).send({ error: "Project not found" });
+      }
+
+      // Get all tracks in the project
+      const tracks = await prisma.track.findMany({
+        where: { projectId },
+      });
+
+      const orphanedTrackIds: string[] = [];
+      const verifiedTrackIds: string[] = [];
+
+      // Check each track to see if its file exists
+      for (const track of tracks) {
+        if (!track.originalUrl) {
+          // No URL means orphaned
+          orphanedTrackIds.push(track.id);
+          continue;
+        }
+
+        try {
+          const url = new URL(track.originalUrl);
+          const pathParts = url.pathname.slice(1).split('/');
+          if (pathParts.length >= 2) {
+            const bucket = pathParts[0];
+            const key = pathParts.slice(1).join('/');
+            const exists = await objectExists(bucket, key);
+            if (!exists) {
+              orphanedTrackIds.push(track.id);
+            } else {
+              verifiedTrackIds.push(track.id);
+            }
+          } else {
+            // Invalid URL format - treat as orphan
+            orphanedTrackIds.push(track.id);
+          }
+        } catch {
+          // Error parsing URL - treat as orphan
+          orphanedTrackIds.push(track.id);
+        }
+      }
+
+      // Delete orphaned tracks
+      if (orphanedTrackIds.length > 0) {
+        await prisma.track.deleteMany({
+          where: {
+            id: { in: orphanedTrackIds },
+            projectId,
+          },
+        });
+      }
+
+      reply.send({
+        deleted: orphanedTrackIds.length,
+        deletedIds: orphanedTrackIds,
+        verified: verifiedTrackIds.length,
+        message: orphanedTrackIds.length > 0
+          ? `Cleaned up ${orphanedTrackIds.length} orphaned track(s)`
+          : "No orphaned tracks found",
+      });
+    }
+  );
+
   /** Get track details */
   app.get<{ Params: { trackId: string } }>(
     "/v1/tracks/:trackId",
