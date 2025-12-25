@@ -224,14 +224,21 @@ export const tracksApi = {
     );
     // Step 2: Upload file directly to S3
     await tracksApi.uploadToS3(uploadUrl, file);
-    // Step 3: Confirm upload and capture metadata
+    // Step 3: Confirm upload and verify file was stored
+    // This is important - if the file didn't upload properly, we need to know
     try {
-      await tracksApi.confirmUpload(trackId, file.size, file.type || "audio/wav");
-    } catch {
-      // Non-critical, don't fail the upload
-      console.warn("Failed to confirm upload, continuing anyway");
+      const confirmation = await tracksApi.confirmUpload(trackId, file.size, file.type || "audio/wav");
+      if (!confirmation.verified) {
+        throw new Error("File upload could not be verified. Please try again.");
+      }
+    } catch (error) {
+      // If confirmation fails, the file probably didn't upload - report this to user
+      const apiError = error as { message?: string; error?: string };
+      const message = apiError.message || apiError.error || "Upload verification failed";
+      console.error("Upload confirmation failed:", message);
+      throw new Error(`Upload failed: ${message}`);
     }
-    // Return the track ID (track record already created by getUploadUrl)
+    // Return the track ID
     return { trackId };
   },
   delete: (trackId: string) =>
